@@ -6,8 +6,10 @@ const connectDB = async () => {
       serverSelectionTimeoutMS: 5000,
     });
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
-  } catch (error) {
-    console.error(`❌ MongoDB connection error: ${error.message}`);
+  } catch (err) {
+    console.error("Full Error:");
+    console.error(err);
+    console.error(err.stack);
     process.exit(1);
   }
 };
