@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Tag, Upload, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, Tag } from 'lucide-react';
 import api from '../../api/axios';
 import Loader from '../../components/ui/Loader';
 import Modal from '../../components/ui/Modal';
@@ -16,8 +16,8 @@ export default function AdminProducts() {
   // Modal / Form state
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [images, setImages] = useState([]); // File list for upload
-  const [imagePreviews, setImagePreviews] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]); // Holds array of image URL strings
+  const [newImageUrl, setNewImageUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -71,8 +71,8 @@ export default function AdminProducts() {
       featured: false,
       isActive: true,
     });
-    setImages([]);
     setImagePreviews([]);
+    setNewImageUrl('');
     setModalOpen(true);
   };
 
@@ -90,69 +90,38 @@ export default function AdminProducts() {
       featured: prod.featured || false,
       isActive: prod.isActive ?? true,
     });
-    setImages([]);
-    setImagePreviews(prod.images || []);
+    setImagePreviews((prod.images || []).map(img => img.url));
+    setNewImageUrl('');
     setModalOpen(true);
   };
 
-  const handleImageChange = (e) => {
-    const files = Array.from(e.target.files);
-    setImages([...images, ...files]);
-
-    const newPreviews = files.map((file) => ({
-      url: URL.createObjectURL(file),
-      isNew: true,
-    }));
-    setImagePreviews([...imagePreviews, ...newPreviews]);
+  const handleAddImageUrl = () => {
+    const trimmed = newImageUrl.trim();
+    if (!trimmed) return;
+    setImagePreviews([...imagePreviews, trimmed]);
+    setNewImageUrl('');
   };
 
-  const handleRemovePreview = async (img, index) => {
-    if (img.isNew) {
-      // Remove from local file list
-      const fileIndex = imagePreviews.slice(0, index).filter((i) => i.isNew).length;
-      const nextImages = [...images];
-      nextImages.splice(fileIndex, 1);
-      setImages(nextImages);
-
-      const nextPreviews = [...imagePreviews];
-      nextPreviews.splice(index, 1);
-      setImagePreviews(nextPreviews);
-    } else {
-      // Remove from backend if editing
-      if (window.confirm('Delete image permanently from this product?')) {
-        try {
-          await api.delete(`/products/${editingId}/images/${img._id}`);
-          toast.success('Image deleted');
-          setImagePreviews(imagePreviews.filter((_, idx) => idx !== index));
-          await fetchProducts();
-        } catch {
-          toast.error('Failed to delete image');
-        }
-      }
-    }
+  const handleRemovePreview = (index) => {
+    const nextPreviews = [...imagePreviews];
+    nextPreviews.splice(index, 1);
+    setImagePreviews(nextPreviews);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const payload = new FormData();
-      Object.keys(formData).forEach((key) => {
-        payload.append(key, formData[key]);
-      });
-      images.forEach((file) => {
-        payload.append('images', file);
-      });
+      const payload = {
+        ...formData,
+        images: imagePreviews,
+      };
 
       if (editingId) {
-        await api.put(`/products/${editingId}`, payload, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        await api.put(`/products/${editingId}`, payload);
         toast.success('Product updated successfully');
       } else {
-        await api.post('/products', payload, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        await api.post('/products', payload);
         toast.success('Product created successfully');
       }
       setModalOpen(false);
@@ -363,27 +332,61 @@ export default function AdminProducts() {
             />
           </div>
 
-          {/* Image Uploader */}
+          {/* Image URLs Input */}
           <div className="form-group">
-            <span className="form-label">Product Images</span>
-            <label className="upload-zone" style={{ display: 'block' }}>
-              <input type="file" multiple accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
-              <Upload className="upload-zone__icon" style={{ margin: '0 auto' }} />
-              <p className="upload-zone__text">Click or drag images here to upload</p>
-            </label>
+            <label className="form-label">Product Images (URLs)</label>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+              <input
+                type="text"
+                placeholder="Paste product image URL here..."
+                className="form-input"
+                value={newImageUrl}
+                onChange={(e) => setNewImageUrl(e.target.value)}
+                style={{ flex: 1 }}
+              />
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleAddImageUrl}
+                style={{ padding: '0 1.25rem', height: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                Add Image
+              </button>
+            </div>
 
             {/* Images list previews */}
             {imagePreviews.length > 0 && (
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
-                {imagePreviews.map((img, index) => (
-                  <div key={index} style={{ position: 'relative', width: '64px', height: '64px', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--border)' }}>
-                    <img src={img.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {imagePreviews.map((url, index) => (
+                  <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(255, 255, 255, 0.03)', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                    <img
+                      src={url}
+                      alt=""
+                      onError={(e) => {
+                        e.target.src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=60&h=60&fit=crop';
+                      }}
+                      style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: 'var(--radius-xs)', flexShrink: 0 }}
+                    />
+                    <input
+                      type="text"
+                      value={url}
+                      onChange={(e) => {
+                        const nextPreviews = [...imagePreviews];
+                        nextPreviews[index] = e.target.value;
+                        setImagePreviews(nextPreviews);
+                      }}
+                      className="form-input"
+                      style={{ flex: 1, padding: '0.25rem 0.5rem', fontSize: '0.85rem', background: 'transparent', border: 'none' }}
+                      title="Edit directly to update URL"
+                    />
                     <button
                       type="button"
-                      onClick={() => handleRemovePreview(img, index)}
-                      style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: 18, height: 18, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                      onClick={() => handleRemovePreview(index)}
+                      className="qty-btn"
+                      style={{ color: 'var(--danger)', borderColor: 'rgba(239, 68, 68, 0.2)', padding: '0.25rem', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      title="Remove image URL"
                     >
-                      <X size={10} />
+                      <Trash2 size={12} />
                     </button>
                   </div>
                 ))}

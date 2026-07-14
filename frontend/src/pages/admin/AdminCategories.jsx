@@ -15,6 +15,7 @@ export default function AdminCategories() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    imageUrl: '',
     isActive: true,
   });
   const [submitting, setSubmitting] = useState(false);
@@ -40,6 +41,7 @@ export default function AdminCategories() {
     setFormData({
       name: '',
       description: '',
+      imageUrl: '',
       isActive: true,
     });
     setModalOpen(true);
@@ -50,6 +52,7 @@ export default function AdminCategories() {
     setFormData({
       name: cat.name,
       description: cat.description || '',
+      imageUrl: cat.image?.url || '',
       isActive: cat.isActive ?? true,
     });
     setModalOpen(true);
@@ -102,6 +105,7 @@ export default function AdminCategories() {
         <table className="data-table">
           <thead>
             <tr>
+              <th>Image</th>
               <th>Name</th>
               <th>Description</th>
               <th>Status</th>
@@ -111,13 +115,20 @@ export default function AdminCategories() {
           <tbody>
             {categories.length === 0 ? (
               <tr>
-                <td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>
+                <td colSpan="5" style={{ textAlign: 'center', padding: '2rem' }}>
                   No categories found.
                 </td>
               </tr>
             ) : (
               categories.map((cat) => (
                 <tr key={cat._id}>
+                  <td>
+                    <img
+                      src={cat.image?.url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=60&h=60&fit=crop'}
+                      alt=""
+                      style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: 'var(--radius-sm)' }}
+                    />
+                  </td>
                   <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cat.name}</td>
                   <td>{cat.description || <span style={{ color: 'var(--text-muted)' }}>No description</span>}</td>
                   <td>
@@ -176,6 +187,29 @@ export default function AdminCategories() {
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="cat-image">Category Image URL</label>
+            <input
+              type="text"
+              id="cat-image"
+              className="form-input"
+              placeholder="Paste category image URL here..."
+              value={formData.imageUrl}
+              onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+            />
+            {formData.imageUrl && (
+              <div style={{ marginTop: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden', width: '80px', height: '80px' }}>
+                <img
+                  src={formData.imageUrl}
+                  alt="Category Preview"
+                  onError={(e) => {
+                    e.target.src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=80&h=80&fit=crop';
+                  }}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              </div>
+            )}
           </div>
           <label className="form-group flex" style={{ gap: '0.5rem', cursor: 'pointer', marginTop: '1rem' }}>
             <input
