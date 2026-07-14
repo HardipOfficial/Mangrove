@@ -98,6 +98,40 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// One-time setup: seed admin user (safe to call multiple times)
+app.post('/api/setup/seed-admin', async (req, res) => {
+  try {
+    const User = require('./models/User');
+    const adminEmail = 'admin@mangrove.com';
+    const adminPassword = 'adminpassword123';
+
+    let admin = await User.findOne({ email: adminEmail });
+    if (admin) {
+      // Promote to admin if not already
+      if (admin.role !== 'admin') {
+        admin.role = 'admin';
+        await admin.save({ validateBeforeSave: false });
+        return res.json({ success: true, message: 'Existing user promoted to admin.' });
+      }
+      return res.json({ success: true, message: 'Admin user already exists.' });
+    }
+
+    // Create new admin
+    admin = await User.create({
+      name: 'Admin User',
+      email: adminEmail,
+      password: adminPassword,
+      role: 'admin',
+      phone: '9876543210',
+      isActive: true,
+    });
+
+    res.status(201).json({ success: true, message: 'Admin user created successfully.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Error handler (must be last)
 app.use(errorHandler);
 
