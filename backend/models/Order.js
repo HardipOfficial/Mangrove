@@ -63,11 +63,10 @@ const orderSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Auto-generate order number
-orderSchema.pre('save', function (next) {
+orderSchema.pre('save', function () {
   if (!this.orderNumber) {
     this.orderNumber = 'MNG-' + Date.now().toString().slice(-8) + Math.random().toString(36).slice(-4).toUpperCase();
   }
-  next();
 });
 
 module.exports = mongoose.model('Order', orderSchema);
